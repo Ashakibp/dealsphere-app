@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: dealsphere-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: dealsphere
+      POSTGRES_PASSWORD: dealsphere123
+      POSTGRES_DB: dealsphere
+    ports:
+      - '5433:5432'
+    volumes:
+      - ./local_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U dealsphere"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+

@@ -1,0 +1,724 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  firstName String
+  lastName  String
+  password  String
+  role      UserRole @default(USER)
+  avatar    String?
+  isAIAgent Boolean  @default(false)
+  
+  // AI Agent specific fields (only used if isAIAgent = true)
+  aiType        AIAgentType?
+  version       String?
+  capabilities  String[]     // Array of capabilities
+  configuration Json?        // AI configuration settings
+  performance   Json?        // AI performance metrics
+  lastActivity  DateTime?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Foreign Keys
+  organizationId String
+
+  // Relationships
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  deals             Deal[]
+  activities        Activity[]
+  brokerRelations   BrokerRelation[]
+  merchantRelations MerchantRelation[]
+  contacts          Contact[]
+
+  @@map("users")
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  users         User[]
+  deals         Deal[]
+  merchants     Merchant[]
+  brokers       Broker[]
+  contacts      Contact[]
+  activities    Activity[]
+  riskAlerts    RiskAlert[]
+  aiInsights    AIInsight[]
+  bankStatements BankStatement[]
+  creditReports CreditReport[]
+  commissions   Commission[]
+
+  @@map("organizations")
+}
+
+model Deal {
+  id               String     @id @default(cuid())
+  dealNumber       String     @unique
+  status           DealStatus @default(PENDING)
+  requestedAmount  Float
+  approvedAmount   Float?
+  factorRate       Float?
+  term             Int? // Term in months
+  dailyPayment     Float?
+  totalPayback     Float?
+  fundedDate       DateTime?
+  maturityDate     DateTime?
+  riskScore        Float?
+  aiScore          Float?
+  aiRecommendation String?
+  notes            String?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  // Foreign Keys
+  merchantId     String
+  brokerId       String?
+  organizationId String
+  userId         String
+
+  // Relationships
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  broker       Broker?       @relation(fields: [brokerId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  documents    Document[]
+  payments     Payment[]
+  activities   Activity[]
+  riskAlerts   RiskAlert[]
+  aiInsights   AIInsight[]
+
+  @@map("deals")
+}
+
+model Merchant {
+  id             String         @id @default(cuid())
+  businessName   String
+  ownerName      String
+  email          String
+  phone          String
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  industry       String?
+  monthlyRevenue Float?
+  yearsInBusiness Int?
+  riskScore      Float?
+  status         MerchantStatus @default(ACTIVE)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Foreign Keys
+  organizationId String
+
+  // Relationships
+  organization      Organization        @relation(fields: [organizationId], references: [id])
+  deals             Deal[]
+  bankStatements    BankStatement[]
+  creditReports     CreditReport[]
+  merchantRelations MerchantRelation[]
+  riskAlerts        RiskAlert[]
+  activities        Activity[]
+
+  @@map("merchants")
+}
+
+model Broker {
+  id             String       @id @default(cuid())
+  name           String
+  company        String?
+  email          String       @unique
+  phone          String
+  address        String?
+  city           String?
+  state          String?
+  zipCode        String?
+  tier           BrokerTier   @default(NEW)
+  rating         Float        @default(0)
+  commissionRate Float        @default(0.03)
+  status         BrokerStatus @default(ACTIVE)
+  specialties    String[] // Array of industry specialties
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  // Foreign Keys
+  organizationId String
+
+  // Relationships
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  deals           Deal[]
+  brokerRelations BrokerRelation[]
+  commissions     Commission[]
+
+  @@map("brokers")
+}
+
+model Contact {
+  id               String        @id @default(cuid())
+  firstName        String
+  lastName         String
+  email            String
+  phone            String?
+  company          String?
+  position         String?
+  location         String?
+  type             ContactType   @default(LEAD)
+  status           ContactStatus @default(POTENTIAL)
+  relationshipScore Float        @default(0)
+  dealsPotential   Int           @default(0)
+  source           ContactSource @default(OTHER)
+  tags             String[]
+  notes            String?
+  lastContactDate  DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Foreign Keys
+  organizationId String
+  userId         String
+
+  // Relationships
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+  activities   Activity[]
+
+  @@map("contacts")
+}
+
+model Document {
+  id          String       @id @default(cuid())
+  filename    String
+  originalName String
+  mimeType    String
+  size        Int
+  path        String
+  type        DocumentType
+  uploadedAt  DateTime     @default(now())
+
+  // Foreign Keys
+  dealId String
+
+  // Relationships
+  deal Deal @relation(fields: [dealId], references: [id])
+
+  @@map("documents")
+}
+
+model Payment {
+  id           String        @id @default(cuid())
+  amount       Float
+  dueDate      DateTime
+  paidDate     DateTime?
+  status       PaymentStatus @default(PENDING)
+  paymentMethod String?
+  notes        String?
+  createdAt    DateTime      @default(now())
+
+  // Foreign Keys
+  dealId String
+
+  // Relationships
+  deal Deal @relation(fields: [dealId], references: [id])
+
+  @@map("payments")
+}
+
+model Activity {
+  id          String       @id @default(cuid())
+  type        ActivityType
+  title       String
+  description String
+  metadata    Json?
+  priority    Priority     @default(LOW)
+  status      ActivityStatus @default(PENDING)
+  scheduledAt DateTime?
+  completedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Foreign Keys
+  userId         String?
+  dealId         String?
+  contactId      String?
+  merchantId     String?
+  organizationId String
+
+  // Relationships
+  user         User?         @relation(fields: [userId], references: [id])
+  deal         Deal?         @relation(fields: [dealId], references: [id])
+  contact      Contact?      @relation(fields: [contactId], references: [id])
+  merchant     Merchant?     @relation(fields: [merchantId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+  
+  // Communication relationships
+  email Email?
+  text  Text?
+  phone Phone?
+  
+  @@index([type, status, scheduledAt])
+  @@index([userId, createdAt])
+  @@index([dealId, createdAt])
+  @@map("activities")
+}
+
+model Email {
+  id           String   @id @default(cuid())
+  subject      String
+  body         String   @db.Text
+  from         String
+  to           String[]
+  cc           String[]
+  bcc          String[]
+  replyTo      String?
+  threadId     String?
+  messageId    String?
+  isRead       Boolean  @default(false)
+  isStarred    Boolean  @default(false)
+  attachments  Json?    // Array of attachment info
+  emailStatus  EmailStatus @default(DRAFT)
+  sentAt       DateTime?
+  openedAt     DateTime?
+  clickedAt    DateTime?
+  bouncedAt    DateTime?
+  unsubscribedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Foreign Keys
+  activityId String @unique
+
+  // Relationships
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([from, to, sentAt])
+  @@index([threadId])
+  @@map("emails")
+}
+
+model Text {
+  id          String   @id @default(cuid())
+  from        String
+  to          String
+  message     String   @db.Text
+  provider    TextProvider @default(TWILIO)
+  messageId   String?  // External provider message ID
+  status      TextStatus @default(PENDING)
+  direction   MessageDirection @default(OUTBOUND)
+  mediaUrls   String[]
+  errorCode   String?
+  errorMessage String?
+  deliveredAt DateTime?
+  readAt      DateTime?
+  cost        Float?
+  segments    Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign Keys
+  activityId String @unique
+
+  // Relationships
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([from, to, status])
+  @@map("texts")
+}
+
+model Phone {
+  id           String   @id @default(cuid())
+  from         String
+  to           String
+  direction    CallDirection @default(OUTBOUND)
+  status       CallStatus @default(INITIATED)
+  duration     Int?     // Duration in seconds
+  recordingUrl String?
+  transcription String?  @db.Text
+  voicemailUrl String?
+  callSid      String?  // External provider call ID
+  provider     CallProvider @default(TWILIO)
+  cost         Float?
+  notes        String?  @db.Text
+  outcome      CallOutcome?
+  answeredAt   DateTime?
+  endedAt      DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Foreign Keys
+  activityId String @unique
+
+  // Relationships
+  activity Activity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  
+  @@index([from, to, status])
+  @@index([callSid])
+  @@map("phones")
+}
+
+
+model RiskAlert {
+  id          String           @id @default(cuid())
+  type        RiskAlertType
+  severity    RiskSeverity
+  title       String
+  description String
+  resolved    Boolean          @default(false)
+  resolvedAt  DateTime?
+  createdAt   DateTime         @default(now())
+
+  // Foreign Keys
+  dealId         String?
+  merchantId     String?
+  organizationId String
+
+  // Relationships
+  deal         Deal?         @relation(fields: [dealId], references: [id])
+  merchant     Merchant?     @relation(fields: [merchantId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@map("risk_alerts")
+}
+
+model AIInsight {
+  id          String     @id @default(cuid())
+  type        InsightType
+  title       String
+  description String
+  confidence  Float
+  actionable  Boolean    @default(false)
+  priority    Priority   @default(LOW)
+  metadata    Json?
+  createdAt   DateTime   @default(now())
+
+  // Foreign Keys
+  dealId         String
+  organizationId String
+
+  // Relationships
+  deal         Deal          @relation(fields: [dealId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@map("ai_insights")
+}
+
+model BankStatement {
+  id            String   @id @default(cuid())
+  month         String
+  year          Int
+  avgDailyBalance Float
+  deposits      Float
+  withdrawals   Float
+  nsfFees       Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  // Foreign Keys
+  merchantId     String
+  organizationId String
+
+  // Relationships
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@map("bank_statements")
+}
+
+model CreditReport {
+  id           String   @id @default(cuid())
+  creditScore  Int?
+  reportDate   DateTime
+  tradelines   Json?
+  inquiries    Json?
+  collections  Json?
+  bankruptcies Json?
+  createdAt    DateTime @default(now())
+
+  // Foreign Keys
+  merchantId     String
+  organizationId String
+
+  // Relationships
+  merchant     Merchant      @relation(fields: [merchantId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@map("credit_reports")
+}
+
+model Commission {
+  id          String    @id @default(cuid())
+  amount      Float
+  rate        Float
+  dealAmount  Float
+  status      CommissionStatus @default(PENDING)
+  paidDate    DateTime?
+  createdAt   DateTime  @default(now())
+
+  // Foreign Keys
+  brokerId       String
+  organizationId String
+
+  // Relationships
+  broker       Broker        @relation(fields: [brokerId], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id])
+
+  @@map("commissions")
+}
+
+model BrokerRelation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Foreign Keys
+  userId   String
+  brokerId String
+
+  // Relationships
+  user   User   @relation(fields: [userId], references: [id])
+  broker Broker @relation(fields: [brokerId], references: [id])
+
+  @@unique([userId, brokerId])
+  @@map("broker_relations")
+}
+
+model MerchantRelation {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  // Foreign Keys
+  userId     String
+  merchantId String
+
+  // Relationships
+  user     User     @relation(fields: [userId], references: [id])
+  merchant Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([userId, merchantId])
+  @@map("merchant_relations")
+}
+
+// Enums
+enum UserRole {
+  ADMIN
+  MANAGER
+  USER
+}
+
+enum DealStatus {
+  PENDING
+  UNDERWRITING
+  APPROVED
+  FUNDED
+  REJECTED
+  PAID_OFF
+  DEFAULTED
+}
+
+enum MerchantStatus {
+  ACTIVE
+  INACTIVE
+  FLAGGED
+  SUSPENDED
+}
+
+enum BrokerStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum BrokerTier {
+  GOLD
+  SILVER
+  BRONZE
+  NEW
+}
+
+enum ContactType {
+  MERCHANT
+  BROKER
+  LEAD
+  PARTNER
+  VENDOR
+}
+
+enum ContactStatus {
+  ACTIVE
+  INACTIVE
+  POTENTIAL
+  BLOCKED
+}
+
+enum ContactSource {
+  REFERRAL
+  WEBSITE
+  EVENT
+  COLD_OUTREACH
+  SOCIAL_MEDIA
+  ADVERTISEMENT
+  OTHER
+}
+
+enum DocumentType {
+  BANK_STATEMENT
+  TAX_RETURN
+  CREDIT_REPORT
+  DRIVER_LICENSE
+  BUSINESS_LICENSE
+  VOIDED_CHECK
+  OTHER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  OVERDUE
+  FAILED
+}
+
+enum ActivityType {
+  DEAL_UPDATE
+  PAYMENT
+  DOCUMENT
+  EMAIL
+  TEXT_MESSAGE
+  PHONE_CALL
+  MEETING
+  TASK
+  AI_ACTION
+  RISK_ALERT
+  APPROVAL
+  FOLLOW_UP
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskAlertType {
+  PAYMENT_DELAY
+  NSF_INCREASE
+  CREDIT_DECLINE
+  UNUSUAL_ACTIVITY
+  FRAUD_INDICATOR
+}
+
+enum RiskSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum InsightType {
+  OPPORTUNITY
+  RISK
+  ACHIEVEMENT
+  OPTIMIZATION
+}
+
+enum CommissionStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+enum ActivityStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum AIAgentType {
+  RISK_ASSESSMENT
+  DEAL_SOURCING
+  UNDERWRITING
+  MONITORING
+  OPTIMIZATION
+  CUSTOMER_SERVICE
+  DOCUMENT_ANALYSIS
+}
+
+enum EmailStatus {
+  DRAFT
+  SENT
+  DELIVERED
+  OPENED
+  CLICKED
+  BOUNCED
+  UNSUBSCRIBED
+  FAILED
+}
+
+enum TextStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  UNDELIVERED
+}
+
+enum TextProvider {
+  TWILIO
+  SENDGRID
+  AMAZON_SNS
+}
+
+enum MessageDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallStatus {
+  INITIATED
+  RINGING
+  ANSWERED
+  COMPLETED
+  FAILED
+  BUSY
+  NO_ANSWER
+}
+
+enum CallDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CallProvider {
+  TWILIO
+  VONAGE
+  BANDWIDTH
+}
+
+enum CallOutcome {
+  CONNECTED
+  VOICEMAIL
+  NO_ANSWER
+  BUSY
+  FAILED
+  INTERESTED
+  NOT_INTERESTED
+  CALLBACK_REQUESTED
+  DEAL_CLOSED
+}

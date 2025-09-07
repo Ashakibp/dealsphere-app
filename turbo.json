@@ -1,0 +1,60 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalDependencies": ["**/.env.*local", ".env"],
+  "globalEnv": ["NODE_ENV", "DATABASE_URL", "OPENAI_API_KEY"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**", "dist/**"],
+      "env": ["NODE_ENV", "DATABASE_URL"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true,
+      "env": ["NODE_ENV", "DATABASE_URL", "OPENAI_API_KEY"]
+    },
+    "start": {
+      "dependsOn": ["build"],
+      "cache": false
+    },
+    "lint": {
+      "dependsOn": ["^lint"],
+      "outputs": []
+    },
+    "type-check": {
+      "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "clean": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": ["node_modules/.prisma/**", "node_modules/@prisma/client/**"]
+    },
+    "db:push": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:migrate": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "outputs": ["prisma/migrations/**"]
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true,
+      "env": ["DATABASE_URL"]
+    },
+    "@dealsphere/web#build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"],
+      "env": ["NODE_ENV", "DATABASE_URL", "OPENAI_API_KEY"]
+    },
+    "@dealsphere/jobs#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["NODE_ENV", "DATABASE_URL", "OPENAI_API_KEY"]
+    }
+  }
+}

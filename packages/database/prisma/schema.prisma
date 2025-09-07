@@ -41,6 +41,8 @@ model User {
   brokerRelations   BrokerRelation[]
   merchantRelations MerchantRelation[]
   contacts          Contact[]
+  assignedLeads     Lead[]
+  leadAssignments   LeadAssignment[]
 
   @@map("users")
 }
@@ -65,6 +67,7 @@ model Organization {
   bankStatements BankStatement[]
   creditReports CreditReport[]
   commissions   Commission[]
+  leads         Lead[]
 
   @@map("organizations")
 }
@@ -199,6 +202,7 @@ model Contact {
   organization Organization @relation(fields: [organizationId], references: [id])
   user         User         @relation(fields: [userId], references: [id])
   activities   Activity[]
+  convertedFromLead Lead?     @relation("LeadToContact")
 
   @@map("contacts")
 }
@@ -259,6 +263,7 @@ model Activity {
   dealId         String?
   contactId      String?
   merchantId     String?
+  leadId         String?
   organizationId String
 
   // Relationships
@@ -266,6 +271,7 @@ model Activity {
   deal         Deal?         @relation(fields: [dealId], references: [id])
   contact      Contact?      @relation(fields: [contactId], references: [id])
   merchant     Merchant?     @relation(fields: [merchantId], references: [id])
+  lead         Lead?         @relation(fields: [leadId], references: [id])
   organization Organization  @relation(fields: [organizationId], references: [id])
   
   // Communication relationships
@@ -513,6 +519,77 @@ model MerchantRelation {
   @@map("merchant_relations")
 }
 
+model Lead {
+  id              String      @id @default(cuid())
+  
+  // Basic Information
+  firstName       String?
+  lastName        String?
+  email           String?
+  phone           String?
+  businessName    String?
+  
+  // Lead Details
+  requestedAmount Float?
+  monthlyRevenue  Float?
+  industry        String?
+  source          LeadSource
+  stage           LeadStage   @default(NEW)
+  
+  // Extra data - stores any unmapped or additional fields from imports
+  extraData       Json?       
+  
+  // Research data - AI agent findings (company info, social media, etc.)
+  researchData    Json?       
+  researchStatus  ResearchStatus @default(PENDING)
+  researchedAt    DateTime?
+  
+  // Import metadata
+  importBatchId   String?     // Track which import batch this came from
+  originalRow     Json?       // Store the complete original row data
+  
+  // Assignment & Ownership
+  assignedToId    String?     
+  assignedTo      User?       @relation(fields: [assignedToId], references: [id])
+  assignedAt      DateTime?
+  
+  // Conversion Tracking
+  convertedToContactId String?   @unique
+  convertedToContact   Contact?  @relation("LeadToContact", fields: [convertedToContactId], references: [id])
+  convertedAt          DateTime?
+  
+  // Metadata
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  
+  // Foreign Keys
+  organizationId  String
+  
+  // Relationships
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  activities      Activity[]
+  assignments     LeadAssignment[]
+
+  @@map("leads")
+}
+
+model LeadAssignment {
+  id          String   @id @default(cuid())
+  leadId      String
+  assignedToId String  
+  assignedBy  String?  
+  reason      String?  // "Initial assignment", "Escalation", "Round-robin", etc.
+  status      AssignmentStatus @default(ACTIVE)
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+  
+  lead        Lead     @relation(fields: [leadId], references: [id])
+  assignedTo  User     @relation(fields: [assignedToId], references: [id])
+
+  @@map("lead_assignments")
+}
+
 // Enums
 enum UserRole {
   ADMIN
@@ -605,6 +682,9 @@ enum ActivityType {
   RISK_ALERT
   APPROVAL
   FOLLOW_UP
+  LEAD_QUALIFICATION
+  LEAD_RESEARCH
+  LEAD_CONVERSION
 }
 
 enum Priority {
@@ -657,6 +737,8 @@ enum AIAgentType {
   OPTIMIZATION
   CUSTOMER_SERVICE
   DOCUMENT_ANALYSIS
+  LEAD_PROCESSOR
+  RESEARCHER
 }
 
 enum EmailStatus {
@@ -721,4 +803,41 @@ enum CallOutcome {
   NOT_INTERESTED
   CALLBACK_REQUESTED
   DEAL_CLOSED
+}
+
+enum LeadSource {
+  WEBSITE
+  PHONE
+  EMAIL
+  SPREADSHEET_UPLOAD
+  API
+  REFERRAL
+  SOCIAL_MEDIA
+  OTHER
+}
+
+enum LeadStage {
+  NEW
+  RESEARCHING
+  CONTACTED
+  QUALIFYING
+  INTERESTED
+  NOT_INTERESTED
+  CONVERTED
+  LOST
+}
+
+enum ResearchStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+  INSUFFICIENT_DATA
+}
+
+enum AssignmentStatus {
+  ACTIVE
+  COMPLETED
+  HANDOFF
+  FAILED
 }

@@ -1,0 +1,23 @@
+{
+  "name": "@dealsphere/jobs",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "worker:research": "tsx src/workers/research.ts",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dealsphere/database": "file:../../packages/database",
+    "@dealsphere/shared": "file:../../packages/shared",
+    "dotenv": "^16.0.3"
+  },
+  "devDependencies": {
+    "@dealsphere/tsconfig": "file:../../packages/tsconfig",
+    "@types/node": "^20",
+    "tsx": "^4.0.0",
+    "typescript": "^5"
+  }
+}

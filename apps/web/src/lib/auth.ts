@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
-import { db } from '@/lib/db';
+import { db } from "@dealsphere/database";
 
 const JWT_SECRET = process.env.JWT_SECRET || 'default-secret-key';
 

@@ -37,8 +37,11 @@ export async function DELETE(request: NextRequest) {
 
 // This endpoint checks the worker status
 export async function GET(request: NextRequest) {
+  const status = researchWorker.getStatus()
   return NextResponse.json({
-    status: 'running', // You could enhance this to track actual status
+    status: status.running ? 'running' : 'stopped',
+    intervalMs: status.intervalMs,
+    batchSize: status.batchSize,
     message: 'Research worker status'
   })
 }

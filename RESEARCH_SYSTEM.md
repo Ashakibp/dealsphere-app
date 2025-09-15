@@ -8,7 +8,7 @@ The research system automatically processes leads to gather additional business 
 
 - **Background Processing**: Automated research tasks running in the background
 - **Live Updates**: Real-time research progress display in the UI
-- **AI-Powered Research**: OpenAI-based research agents that gather company data
+- **AI-Powered Research**: Claude agent with Perplexity web-search tool (structured by OpenAI) that gathers company data
 - **Activity Tracking**: Detailed logging of all research activities
 
 ## Architecture
@@ -42,7 +42,13 @@ npm install
 ### 2. Set Environment Variables
 Add to your `.env.local`:
 ```env
-# OpenAI API Key (required for research)
+# Perplexity (web search tool)
+PERPLEXITY_API_KEY=your_perplexity_api_key
+
+# Anthropic (Claude agent)
+ANTHROPIC_API_KEY=your_anthropic_api_key
+
+# OpenAI (structured output normalizer)
 OPENAI_API_KEY=your_openai_api_key
 ```
 
@@ -146,6 +152,7 @@ GET /api/leads/[id]/activities
 Edit `src/services/research-worker.ts`:
 - `batchSize`: Number of leads processed per cycle (default: 5)
 - `intervalMs`: Processing interval in milliseconds (default: 45000)
+- Provider: Worker uses a Claude tool-use loop with a Perplexity search tool. Configure `ANTHROPIC_API_KEY` and `PERPLEXITY_API_KEY`.
 
 ### UI Refresh Rates
 - Lead list: 20 seconds (configurable in `ai-lead-intake/page.tsx`)
@@ -154,7 +161,8 @@ Edit `src/services/research-worker.ts`:
 ## Troubleshooting
 
 ### Research Worker Not Starting
-- Check OpenAI API key is set
+- Check Perplexity API key is set (`PERPLEXITY_API_KEY`)
+- Check Anthropic API key is set (`ANTHROPIC_API_KEY`)
 - Verify database connection
 - Check console logs for error messages
 
@@ -196,3 +204,4 @@ researchedAt: TIMESTAMP -- When research was completed
 - Advanced research agent specialization
 - Research result quality scoring
 - Integration with external data sources
+- Native Mastra agent tools (web search/scrape) and structured outputs validation

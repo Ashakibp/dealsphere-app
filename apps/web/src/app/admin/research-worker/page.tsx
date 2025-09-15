@@ -160,8 +160,8 @@ export default function ResearchWorkerPage() {
 
         <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-card">
           <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> The research worker requires an OpenAI API key to be configured. 
-            Make sure OPENAI_API_KEY is set in your environment variables.
+            <strong>Note:</strong> The research worker runs a Claude agent with a Perplexity search tool and normalizes results via OpenAI. 
+            Set <code>PERPLEXITY_API_KEY</code>, <code>ANTHROPIC_API_KEY</code>, and <code>OPENAI_API_KEY</code>.
           </p>
         </div>
       </div>

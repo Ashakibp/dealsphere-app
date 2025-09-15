@@ -1,7 +1,6 @@
 import { db, ResearchStatus, LeadStage } from '@dealsphere/database'
-import { generateText } from 'ai'
-import { openai } from '@ai-sdk/openai'
 import type { ResearchResult } from '../types'
+import { runClaudePerplexityAgentStructured } from './claude-perplexity-researcher'
 
 class ResearchWorker {
   private isRunning = false
@@ -34,6 +33,14 @@ class ResearchWorker {
       this.intervalId = null
     }
     console.log('[RESEARCH_WORKER] Research worker stopped')
+  }
+
+  getStatus() {
+    return {
+      running: this.isRunning,
+      intervalMs: this.intervalMs,
+      batchSize: this.batchSize,
+    }
   }
 
   private async processQueue() {
@@ -268,82 +275,15 @@ class ResearchWorker {
   }
 
   private async performResearch(lead: any, requestId: string): Promise<ResearchResult> {
-    console.log(`[RESEARCH_WORKER] ${requestId} - Performing AI research`)
-
-    const businessName = lead.businessName || `${lead.firstName} ${lead.lastName}`.trim()
-    const email = lead.email
-    const industry = lead.industry
-    
-    const prompt = `Research this business lead and provide comprehensive information:
-
-Business Name: ${businessName}
-Email: ${email || 'Not provided'}
-Industry: ${industry || 'Unknown'}
-Current Monthly Revenue: ${lead.monthlyRevenue ? '$' + lead.monthlyRevenue.toLocaleString() : 'Not provided'}
-
-Please research and provide:
-1. Company information (industry classification, estimated revenue, employee count, description)
-2. Contact validation (email validity assessment, business legitimacy)
-3. Business analysis (industry category, revenue range estimate, business type, risk assessment)
-
-Return detailed findings with confidence scores. If information is not available, indicate that clearly.
-Focus on publicly available information and reasonable business estimates based on the provided data.`
-
+    console.log(`[RESEARCH_WORKER] ${requestId} - Performing research via Perplexity (web) + Claude (synthesis) + OpenAI (structured)`)
     try {
-      const { text } = await generateText({
-        model: openai('gpt-4-turbo'),
-        prompt,
-        temperature: 0.3
-      })
-
-      // Parse the AI response into structured data
-      const researchResult: ResearchResult = this.parseResearchResponse(text)
-      
-      console.log(`[RESEARCH_WORKER] ${requestId} - AI research completed with confidence: ${researchResult.confidence}`)
-      return researchResult
-
+      const res = await runClaudePerplexityAgentStructured(lead)
+      console.log(`[RESEARCH_WORKER] ${requestId} - Research finished (confidence=${res.confidence ?? 'n/a'})`)
+      return res
     } catch (error) {
-      console.error(`[RESEARCH_WORKER] ${requestId} - AI research failed:`, error)
-      throw new Error(`AI research failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      console.error(`[RESEARCH_WORKER] ${requestId} - Research failed:`, error)
+      throw new Error(`Research failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
     }
-  }
-
-  private parseResearchResponse(text: string): ResearchResult {
-    // Simple parsing logic - in production, you might want to use structured outputs
-    const result: ResearchResult = {
-      companyInfo: {},
-      contactValidation: {},
-      businessAnalysis: {},
-      confidence: 0.7, // Default confidence
-      sources: ['AI Analysis']
-    }
-
-    // Extract industry information
-    const industryMatch = text.match(/industry[:\s]*([^\n]+)/i)
-    if (industryMatch) {
-      result.companyInfo!.industry = industryMatch[1].trim()
-    }
-
-    // Extract revenue estimates
-    const revenueMatch = text.match(/revenue[:\s]*\$?(\d{1,3}(?:,\d{3})*)/i)
-    if (revenueMatch) {
-      const revenue = parseInt(revenueMatch[1].replace(/,/g, ''))
-      result.companyInfo!.estimatedRevenue = revenue
-    }
-
-    // Extract employee count
-    const employeeMatch = text.match(/employee[s]?[:\s]*(\d+[-\d\s]*)/i)
-    if (employeeMatch) {
-      result.companyInfo!.employeeCount = employeeMatch[1].trim()
-    }
-
-    // Extract business description
-    const descriptionMatch = text.match(/description[:\s]*([^\n]{1,200})/i)
-    if (descriptionMatch) {
-      result.companyInfo!.description = descriptionMatch[1].trim()
-    }
-
-    return result
   }
 
   private countDataPoints(result: ResearchResult): number {
